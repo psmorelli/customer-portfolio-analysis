@@ -1,3 +1,5 @@
+## Function for unifying weekly files into a single file
+
 def transactions(input_file, output_file):
     import pandas as pd
     import numpy as np

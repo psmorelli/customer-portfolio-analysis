@@ -1,3 +1,5 @@
+#Function for extracting and transforming customer data
+
 def customers(input_file, output_file):
 
     import pandas as pd
@@ -19,7 +21,7 @@ def customers(input_file, output_file):
     df['cust_price_sensitivity'] = np.where((df['cust_price_sensitivity'] == 'XX'),'unclassified' , df['cust_price_sensitivity'])
 
     # Life Stage
-
+    
     df['cust_lifestage'] = np.where((df['cust_lifestage'] == 'YA'),'Young Adults' , df['cust_lifestage'])
     df['cust_lifestage'] = np.where((df['cust_lifestage'] == 'OA'),'Older Adults' , df['cust_lifestage'])
     df['cust_lifestage'] = np.where((df['cust_lifestage'] == 'YF'),'Young Families' , df['cust_lifestage'])
@@ -28,13 +30,16 @@ def customers(input_file, output_file):
     df['cust_lifestage'] = np.where((df['cust_lifestage'] == 'OT'),'Other' , df['cust_lifestage'])
     df['cust_lifestage'] = np.where((df['cust_lifestage'] == 'XX'),'unclassified' , df['cust_lifestage'])
 
-
+    # Save file
     if path.exists(output_file):
         df.to_csv(output_file, mode='a', header=False, index=False)
     else:
         df.to_csv(output_file, index=False)
 
     print(input_file + ' already processed into ' + output_file)
+
+
+#Function used for the creation of the customer portfolio and calculations of metrics and dimensions.
 
 def monthly_portfolio(input_file, output_file):
 
@@ -110,6 +115,7 @@ def monthly_portfolio(input_file, output_file):
     months = list(pd.DataFrame(df_monthly_portfolio['shop_month'].value_counts()).index)
     months.sort()
 
+    # Return month before or after a specific month
     def month_lag_lead(date,operation):
         from datetime import datetime
         from dateutil.relativedelta import relativedelta
@@ -119,6 +125,7 @@ def monthly_portfolio(input_file, output_file):
         elif operation == 'lead':
             return date + relativedelta(months=1)
 
+    #function to calc recency
     def recency(active, recency_lag):
 
         if active == 1 and recency_lag > 0:
@@ -178,8 +185,11 @@ def monthly_portfolio(input_file, output_file):
                                             on=['cust_code']
                                             )
 
-
+    # Save file
     df_monthly_portfolio.to_csv(output_file, index=False)
+
+
+#Function to calc indicators of portfolio moviment
 
 def portfolio_waterfall(input_file, output_file):
 
@@ -188,31 +198,37 @@ def portfolio_waterfall(input_file, output_file):
 
     df = pd.read_csv(input_file, low_memory=False)
 
+    # Calc customers active last month
     df_active_last_month = (df[df['recency_lag'] > 0].groupby(['shop_month'])
     .agg({'cust_code' : 'nunique'})
     .reset_index()
     .rename(columns={'cust_code' : 'active_last_month'}))
 
+    # Calc new active customers
     df_new_customers = (df[df['customer_mob'] == 0].groupby(['shop_month'])
     .agg({'cust_code' : 'nunique'})
     .reset_index()
     .rename(columns={'cust_code' : 'new_customers'}))
 
+    # Calc reactivate customers
     df_reactive = (df[(df['recency_lag'] < 0) & (df['recency'] > 0)].groupby(['shop_month'])
     .agg({'cust_code' : 'nunique'})
     .reset_index()
     .rename(columns={'cust_code' : 'reactive'}))
 
+    # Calc inactive customers
     df_inactive = (df[(df['recency_lag'] > 0) & (df['recency'] < 0)].groupby(['shop_month'])
     .agg({'cust_code' : 'nunique'})
     .reset_index()
     .rename(columns={'cust_code' : 'inactive'}))
 
+    # Calc current active customers
     df_active_current = (df[df['active'] == 1].groupby(['shop_month'])
     .agg({'cust_code' : 'nunique'})
     .reset_index()
     .rename(columns={'cust_code' : 'current_active'})
 
+    # Merge all indicators
     df_waterfall = df_active_last_month.merge(right=df_new_customers,
                                             how='left',
                                             on=['shop_month']
@@ -233,8 +249,11 @@ def portfolio_waterfall(input_file, output_file):
                                             on=['shop_month']
                                             )
 
+    # Create a column to identify values rows
     df_waterfall['type'] = 'values'
 
+
+    # Calc aux values to facilitate waterfall visualization on Tableau
     df_waterfall_aux = df_waterfall[['shop_month']] 
 
     df_waterfall_aux['active_last_month'] = 0
@@ -251,4 +270,5 @@ def portfolio_waterfall(input_file, output_file):
 
     df_waterfall = pd.concat([df_waterfall,df_waterfall_aux], sort=False)
 
+    # Save file
     df_waterfall.to_csv(output_file, index=False)
