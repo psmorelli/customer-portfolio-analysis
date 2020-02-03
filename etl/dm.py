@@ -226,7 +226,7 @@ def portfolio_waterfall(input_file, output_file):
     df_active_current = (df[df['active'] == 1].groupby(['shop_month'])
     .agg({'cust_code' : 'nunique'})
     .reset_index()
-    .rename(columns={'cust_code' : 'current_active'})
+    .rename(columns={'cust_code' : 'current_active'}))
 
     # Merge all indicators
     df_waterfall = df_active_last_month.merge(right=df_new_customers,
